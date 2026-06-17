@@ -5,6 +5,8 @@ app.use(express.json());
 
 const VERIFY_TOKEN = "rainha123";
 
+let historico = [];
+
 app.get("/", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -18,20 +20,45 @@ app.get("/", (req, res) => {
 });
 
 app.post("/", (req, res) => {
-  console.log("WEBHOOK:", JSON.stringify(req.body));
+  const body = req.body;
 
-  const value =
-    req.body?.entry?.[0]?.changes?.[0]?.value;
+  console.log("WEBHOOK:", JSON.stringify(body));
+
+  const value = body.entry?.[0]?.changes?.[0]?.value;
 
   if (value?.statuses) {
     value.statuses.forEach((s) => {
-      console.log("STATUS:", s.status);
-      console.log("DESTINO:", s.recipient_id);
-      console.log("ID:", s.id);
+      const evento = {
+        id: s.id,
+        telefone: s.recipient_id,
+        status: s.status,
+        data: new Date(Number(s.timestamp) * 1000).toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo"
+        }),
+        motivo: s.errors ? JSON.stringify(s.errors) : ""
+      };
+
+      historico.push(evento);
+
+      console.log("STATUS:", evento.status);
+      console.log("DESTINO:", evento.telefone);
+      console.log("ID:", evento.id);
     });
   }
 
   res.sendStatus(200);
+});
+
+app.get("/status", (req, res) => {
+  res.json(historico);
+});
+
+app.get("/status/:telefone", (req, res) => {
+  const telefone = req.params.telefone;
+
+  const filtrado = historico.filter(x => x.telefone === telefone);
+
+  res.json(filtrado);
 });
 
 const PORT = process.env.PORT || 3000;
